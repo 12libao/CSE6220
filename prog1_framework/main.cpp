@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
             nqueen_master(n, k, e, solns);
         }
         else {
-            nqueen_worker(n, k);
+            nqueen_worker(n, k, e);
         }
 
         MPI_Barrier(MPI_COMM_WORLD);

@@ -70,7 +70,8 @@ void nqueen_master( unsigned int n,
 }
 
 void nqueen_worker( unsigned int n,
-                    unsigned int k) {
+                    unsigned int k,
+                    unsigned int exit_on_first) {
 
 
 

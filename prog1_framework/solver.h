@@ -59,10 +59,12 @@ void nqueen_master( unsigned int n,
  * Parameters:
  * n : The board size
  * k: The length of solution completed by master before handing the job to worker
+ * exit_on_first : Whether or not to exit on first solution
  *
  * *****************************************************************/
 void nqueen_worker( unsigned int n,
-                    unsigned int k);
+                    unsigned int k,
+                    unsigned int exit_on_first);
 
 
 
