@@ -18,7 +18,7 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
     std::vector < vector<int> > solutions;
 
     // TODO: Implement this function
-    for (int p1 = 8; p1 <= 8; ++p1){
+    for (int p1 = 1; p1 <= 8; ++p1){
 
         std::vector<int> position(n, p1);
         int l = 1;
@@ -30,8 +30,9 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
             // initialize the starting point for position search
             // re-search i_th column postion from: position[i-1] + 1
             int startPoint = 1;
-            if ((l > 8) ||(solutionFound = 1)){
+            if ((l > 8) || (solutionFound == 1)){
                 startPoint = position[i-1] + 1;
+                solutionFound = 0;
             }
 
             l = startPoint;
@@ -60,40 +61,40 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
 
             if (l > 8){
                 i -= 2;
-                cout << "i=" << i+1 << ", ";
+                // cout << "i=" << i+1 << ", ";
             }else{
                 position[i-1] = l;
             }
             
-            // Print solutions:
+            
             if (i == n){
                 solutions.push_back(position);
                 rowsSolution += 1;
-                cout << "rowsSolution=" << rowsSolution << ", ";
 
                 i -= 2;
                 solutionFound = 1;
-
-                for_each(solutions.begin(), solutions.end(),
-                    [](const auto & row ) { 
-                        for_each(row.begin(), row.end(), 
-                                [](const auto & elem){
-                                    cout << elem << ", ";
-                                });
-                        cout << endl;
-                    });
-                cout << endl; 
             }
-
+            
             if (i <= 0){
                 break;
             }
-                
+
         }
     }
+
+    // Print solutions:
+    cout << "Number of Solutions=" << rowsSolution-1 << "\n";           
+    for_each(solutions.begin(), solutions.end(),
+        [](const auto & row ) { 
+            for_each(row.begin(), row.end(), 
+                    [](const auto & elem){
+                        cout << elem << ", ";
+                    });
+            cout << endl;
+        });
+    cout << endl; 
+
 }
-
-
 
 
 
