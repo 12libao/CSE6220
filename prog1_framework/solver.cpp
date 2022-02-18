@@ -127,6 +127,47 @@ void nqueen_master( unsigned int n,
         int l = 1;
         int solutionFound = 0;
 
+        if (k == 1){
+            partial_solution[0] = p1;
+            if (worker <= num_procs-1){
+                // cout <<"send_1:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout <<elem << ", ";}); cout<<" \n" ;
+                MPI_Send(&partial_solution[0], k, MPI_INT, worker, tag_id, MPI_COMM_WORLD);
+                send_times += 1;
+                tag_id += 1;
+                solutionFound = 1;
+                
+            }
+            
+            worker += 1;
+
+            if (worker > num_procs){
+                MPI_Status status;
+                int recv_size;
+                MPI_Recv(&recv_size, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // ----May need waiting time to let worker complete---------
+                //MPI_Wait(&req, &status);
+
+                // Specify the rank of responded worker and number of tag:
+                int worker_id = status.MPI_SOURCE;
+                tag_id = status.MPI_TAG;
+                recv_final_solution.resize(recv_size);
+                
+                MPI_Recv(&recv_final_solution[0], recv_size, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD, &status);
+                received_times += 1;
+
+                // cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
+
+                for (int ii = 0; ii < recv_final_solution.size(); ++ii){
+                    final_solution.push_back(recv_final_solution[ii]);   
+                }
+
+                MPI_Send(&partial_solution[0], k, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD);
+
+                send_times += 1;
+                solutionFound = 1;
+            }
+
+        }
+
         // i_th column search from 2_th to k_th columns
         for (int i = 2; i <= k; ++i){   
 
@@ -174,14 +215,16 @@ void nqueen_master( unsigned int n,
                 // cout <<"send_1:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout <<elem << ", ";}); cout<<" \n" ;
 
                 MPI_Send(&partial_solution[0], k, MPI_INT, worker, tag_id, MPI_COMM_WORLD);
-                worker += 1;
+                
                 send_times += 1;
                 tag_id += 1;
                 i -= 2;
                 solutionFound = 1;
             }
 
-            if ((i == k) && (worker > num_procs-1)){
+            worker += 1;
+
+            if ((i == k) && (worker > num_procs)){
                 /******************* STEP 2: Send partial solutions to workers as they respond ********************/
                 /*
                 * while() {
@@ -209,7 +252,7 @@ void nqueen_master( unsigned int n,
                 MPI_Recv(&recv_final_solution[0], recv_size, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD, &status);
                 received_times += 1;
 
-                cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
+                // cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
 
                 // if (tag_id == 2){
                 //     cout <<"recv_final_solution:" <<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
@@ -245,8 +288,8 @@ void nqueen_master( unsigned int n,
 
     }
 
-    cout<<"send_times="<< send_times<<"\n";
-    cout<<"recive_times="<< received_times<<"\n";
+    //cout<<"send_times="<< send_times<<"\n";
+    //cout<<"recive_times="<< received_times<<"\n";
 
     while (send_times != received_times){
         // 4. Break when no more partial solutions exist and all workers have responded with jobs handed to them, or if exiting on first solution
@@ -302,19 +345,20 @@ void nqueen_master( unsigned int n,
         }
 
         // cout <<"fianl solution:" <<"\n"; for_each(solns.begin(), solns.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
-        cout << "send times #"<< send_times<<"\n";
+        //cout << "send times #"<< send_times<<"\n";
         cout << "fianl solution #"<< final_solution.size()/n<<"\n";
         //cout << "fianl solution 0 = #"<< final_solution[-1]<<"\n";
         //Print solutions:
 
-        cout <<"fianl solution:"; 
-        for (int i = 0; i < final_solution.size(); ++i){
-            if (remainder((i), n)==0){
-                cout << "\n";
-            }
-            cout << final_solution[i] << ", ";
 
-        }
+        // Print final soultion-------------------------------
+        // cout <<"fianl solution:"; 
+        // for (int i = 0; i < final_solution.size(); ++i){
+        //     if (remainder((i), n)==0){
+        //         cout << "\n";
+        //     }
+        //     cout << final_solution[i] << ", ";
+        // }
 
     }
 }
@@ -380,7 +424,7 @@ void nqueen_worker( unsigned int n,
             }
 
             // i_th column search from 5_th to n_th columns
-            for (int i = 5; i <= n; ++i){   
+            for (int i = k+1; i <= n; ++i){   
 
                 // initialize the starting point for position search
                 // re-search i_th column postion from: position[i-1] + 1
@@ -431,7 +475,26 @@ void nqueen_worker( unsigned int n,
                 // if (tag_id == 1){
                 //     cout <<"i=" <<i<<"\n";
                 // }
-                    
+                
+                if (k == 1){
+                    if (i < k){
+                        int send_size = solutions.size();
+
+                        // if (tag_id == 1){
+                        //     cout << "solution_size="<< solutions.size()<<"\n";
+                        // }
+
+                        // if (tag_id == 1){
+                        // cout <<"send complete solutions:" <<"\n"; for_each(solutions.begin(), solutions.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";}
+
+                        // cout <<"send complete solutions:" <<"\n"; for_each(solutions.begin(), solutions.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
+                        
+                        MPI_Send(&send_size, 1, MPI_INT, master, tag_id, MPI_COMM_WORLD);
+                        MPI_Send(&solutions[0], send_size, MPI_INT, master, tag_id, MPI_COMM_WORLD);
+                        solutions.clear();
+                        break;
+                    }
+                }
 
                 if (i < k-1){
                     int send_size = solutions.size();
