@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
 
     // total number of procs in the world
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+    printf("Hello from rank %d/%d.\n", proc_id, num_procs);
 
     // the board size and the size of partial soln to be computed by master
     unsigned int n,k,e;
@@ -63,6 +64,16 @@ int main(int argc, char **argv) {
 
         MPI_Barrier(MPI_COMM_WORLD);
     }
+
+    // if (proc_id==0) {
+    //     nqueen_master(n, k, e, solns);
+    // }
+    // else {
+    //     nqueen_worker(n, k, e);
+    // }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    
 
     time_elapsed += MPI_Wtime();
 
