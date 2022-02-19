@@ -6,6 +6,7 @@
 #include <sstream>
 #include "solver.h"
 #include "utils.h"
+using namespace std;
 
 
 int main(int argc, char **argv) {
@@ -47,8 +48,9 @@ int main(int argc, char **argv) {
     // vector containing solutions
     std::vector<std::vector<unsigned int> > solns;
 
-    double time_elapsed=0.0;
+    double time_elapsed=0.0, maxtime=0.0, mintime=0.0, avgtime=0.0, mytime = 0.0;
     time_elapsed -= MPI_Wtime();
+    mytime = MPI_Wtime();  /*get time just before work section */
 
     if (num_procs==1) {
         seq_solver(n, e, solns);
@@ -76,16 +78,31 @@ int main(int argc, char **argv) {
     
 
     time_elapsed += MPI_Wtime();
+    
+    mytime = MPI_Wtime() - mytime;  /*get time just after work section*/
+    /*compute max, min, and average timing statistics*/
+    MPI_Reduce(&mytime, &maxtime, 1, MPI_DOUBLE,MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&mytime, &mintime, 1, MPI_DOUBLE, MPI_MIN, 0,MPI_COMM_WORLD);
+    MPI_Reduce(&mytime, &avgtime, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
 
 
     if (proc_id==0) {
-        std::ofstream out_file;
-        out_file.open("out_"+std::to_string(n)+"_"+std::to_string(num_procs)+"_"+std::to_string(k)+"_"+std::to_string(e)+".txt");
-        write_output(out_file, time_elapsed, e, solns);
-        out_file.close();
-
+        // std::ofstream out_file;
+        // out_file.open("out_"+std::to_string(n)+"_"+std::to_string(num_procs)+"_"+std::to_string(k)+"_"+std::to_string(e)+".txt");
+        // write_output(out_file, time_elapsed, e, solns);
+        // out_file.close();
         std::cout << n << "\t" << num_procs << "\t" << k << "\t" << e << "\t" << time_elapsed << std::endl;
+        avgtime /= num_procs;
+        printf("mytime: %lf  Min: %lf  Max: %lf  Avg:  %lf\n", mytime,mintime, maxtime, avgtime);
     }
+
+    // if (proc_id==1) {
+    //     // std::ofstream out_file;
+    //     // out_file.open("out_"+std::to_string(n)+"_"+std::to_string(num_procs)+"_"+std::to_string(k)+"_"+std::to_string(e)+".txt");
+    //     // write_output(out_file, time_elapsed, e, solns);
+    //     // out_file.close();
+    //     std::cout<<time <<time_elapsed<<"\n";
+    // }
 
     MPI_Finalize();
 

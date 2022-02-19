@@ -81,17 +81,18 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
         }
     }
 
+
     //Print solutions:
     cout << "Number of Solutions=" << rowsSolution-1 << "\n";           
-    for_each(solutions.begin(), solutions.end(),
-        [](const auto & row ) { 
-            for_each(row.begin(), row.end(), 
-                    [](const auto & elem){
-                        cout << elem << ", ";
-                    });
-            cout << endl;
-        });
-    cout << endl; 
+    // for_each(solutions.begin(), solutions.end(),
+    //     [](const auto & row ) { 
+    //         for_each(row.begin(), row.end(), 
+    //                 [](const auto & elem){
+    //                     cout << elem << ", ";
+    //                 });
+    //         cout << endl;
+    //     });
+    // cout << endl; 
 
 }
 
@@ -168,124 +169,128 @@ void nqueen_master( unsigned int n,
 
         }
 
-        // i_th column search from 2_th to k_th columns
-        for (int i = 2; i <= k; ++i){   
+        if (k != 1){
+            // i_th column search from 2_th to k_th columns
+            for (int i = 2; i <= k; ++i){   
 
-            // initialize the starting point for position search
-            // re-search i_th column postion from: position[i-1] + 1
-            int startPoint = 1;
-            if ((l > n) || (solutionFound == 1)){
-                startPoint = partial_solution[i-1] + 1;
-                solutionFound = 0;
-            }
+                // initialize the starting point for position search
+                // re-search i_th column postion from: position[i-1] + 1
+                int startPoint = 1;
+                if ((l > n) || (solutionFound == 1)){
+                    startPoint = partial_solution[i-1] + 1;
+                    solutionFound = 0;
+                }
 
-            l = startPoint;
+                l = startPoint;
 
-            // position search for i_th column
-            for (int kk = 0; kk < i-1; ++kk){
-                int j = partial_solution[kk];
+                // position search for i_th column
+                for (int kk = 0; kk < i-1; ++kk){
+                    int j = partial_solution[kk];
 
-                // threaten strategy
-                if ((j == l) || (std::abs(i - 1 - kk) == std::abs(j - l))){
-                    kk = -1;
-                    l += 1;
-                    if (l > n){
-                        break;
+                    // threaten strategy
+                    if ((j == l) || (std::abs(i - 1 - kk) == std::abs(j - l))){
+                        kk = -1;
+                        l += 1;
+                        if (l > n){
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (l > n){
-                i -= 2;
-            }else{
-                partial_solution[i-1] = l;
-            }
-            
-            if ((i == k) && (worker <= num_procs-1)){
-                /******************* STEP 1: Send one partial solution to each worker ********************/
-                /*
-                * for (all workers) {
-                *      - create a partial solution.
-                *      - send that partial solution to a worker
-                * }
-                */
-
-                // send that partial solution to a worker
-
-                // cout <<"send_1:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout <<elem << ", ";}); cout<<" \n" ;
-
-                MPI_Send(&partial_solution[0], k, MPI_INT, worker, tag_id, MPI_COMM_WORLD);
+                if (l > n){
+                    i -= 2;
+                }else{
+                    partial_solution[i-1] = l;
+                }
                 
-                send_times += 1;
-                tag_id += 1;
-                i -= 2;
-                solutionFound = 1;
-            }
+                // cout<< i <<","<< k<<"," <<worker<<","<<num_procs-1<<"\n";
 
-            worker += 1;
+                if ((i == k) && (worker <= num_procs-1)){
+                    /******************* STEP 1: Send one partial solution to each worker ********************/
+                    /*
+                    * for (all workers) {
+                    *      - create a partial solution.
+                    *      - send that partial solution to a worker
+                    * }
+                    */
 
-            if ((i == k) && (worker > num_procs)){
-                /******************* STEP 2: Send partial solutions to workers as they respond ********************/
-                /*
-                * while() {
-                *      - receive completed work from a worker processor.
-                *      - create a partial solution
-                *      - send that partial solution to the worker that responded
-                *      - Break when no more partial solutions exist and all workers have responded with jobs handed to them, or if exiting on first solution
-                * }
-                */
-                // 1. receive completed work from any worker processor.
-                // Receives any one of the messages. ''''No order guarante needed''''.
-                // Using Non-blocking receive:
-                MPI_Status status;
-                //MPI_Request req;
-                
-                int recv_size;
-                MPI_Recv(&recv_size, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // ----May need waiting time to let worker complete---------
-                //MPI_Wait(&req, &status);
+                    // send that partial solution to a worker
 
-                // Specify the rank of responded worker and number of tag:
-                int worker_id = status.MPI_SOURCE;
-                tag_id = status.MPI_TAG;
-                recv_final_solution.resize(recv_size);
-                
-                MPI_Recv(&recv_final_solution[0], recv_size, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD, &status);
-                received_times += 1;
+                    // cout <<"send_1:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout <<elem << ", ";}); cout<<" \n" ;
 
-                // cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
-
-                // if (tag_id == 2){
-                //     cout <<"recv_final_solution:" <<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
-                // }
-
-                // for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
-
-                // cout << recv_final_solution.size()<<"\n";
-                //store the final solutions
-                for (int ii = 0; ii < recv_final_solution.size(); ++ii){
-                    final_solution.push_back(recv_final_solution[ii]);   
+                    MPI_Send(&partial_solution[0], k, MPI_INT, worker, tag_id, MPI_COMM_WORLD);
+                    
+                    send_times += 1;
+                    tag_id += 1;
+                    i -= 2;
+                    solutionFound = 1;
+                    worker += 1;
                 }
 
-                // cout <<"final_solution_update:" <<""; for_each(final_solution.begin(), final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
+                
 
-                // 2 & 3. create a partial solution & send that partial solution to the worker that responded
-                MPI_Send(&partial_solution[0], k, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD);
+                if ((i == k) && (worker > num_procs-1)){
+                    /******************* STEP 2: Send partial solutions to workers as they respond ********************/
+                    /*
+                    * while() {
+                    *      - receive completed work from a worker processor.
+                    *      - create a partial solution
+                    *      - send that partial solution to the worker that responded
+                    *      - Break when no more partial solutions exist and all workers have responded with jobs handed to them, or if exiting on first solution
+                    * }
+                    */
+                    // 1. receive completed work from any worker processor.
+                    // Receives any one of the messages. ''''No order guarante needed''''.
+                    // Using Non-blocking receive:
+                    MPI_Status status;
+                    //MPI_Request req;
+                    
+                    int recv_size;
+                    MPI_Recv(&recv_size, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // ----May need waiting time to let worker complete---------
+                    //MPI_Wait(&req, &status);
 
-                send_times += 1;
-                i -= 2;
-                solutionFound = 1;
+                    // Specify the rank of responded worker and number of tag:
+                    int worker_id = status.MPI_SOURCE;
+                    tag_id = status.MPI_TAG;
+                    recv_final_solution.resize(recv_size);
+                    
+                    MPI_Recv(&recv_final_solution[0], recv_size, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD, &status);
+                    received_times += 1;
 
-                // cout <<"partial_solution:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
+                    // cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
 
+                    // if (tag_id == 2){
+                    //     cout <<"recv_final_solution:" <<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
+                    // }
+
+                    // for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
+
+                    // cout << recv_final_solution.size()<<"\n";
+                    //store the final solutions
+                    for (int ii = 0; ii < recv_final_solution.size(); ++ii){
+                        final_solution.push_back(recv_final_solution[ii]);   
+                    }
+
+                    // cout <<"final_solution_update:" <<""; for_each(final_solution.begin(), final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
+
+                    // 2 & 3. create a partial solution & send that partial solution to the worker that responded
+                    MPI_Send(&partial_solution[0], k, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD);
+
+                    send_times += 1;
+                    i -= 2;
+                    solutionFound = 1;
+
+                    // cout <<"partial_solution:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
+
+
+                }
+
+                if (i <= 0){
+                    break;
+                }
 
             }
-
-            if (i <= 0){
-                break;
-            }
-
         }
-
     }
 
     //cout<<"send_times="<< send_times<<"\n";
@@ -411,6 +416,12 @@ void nqueen_worker( unsigned int n,
 
         // cout << "partial_solution=" << partial_solution << "\n";
         tag_id = status.MPI_TAG;
+
+        if (partial_solution[0] == -1){
+            break;
+        }
+
+        
         // if (message is a partial job)
         if (partial_solution[0] != -1){
 
@@ -518,9 +529,6 @@ void nqueen_worker( unsigned int n,
             }
         }
 
-        if (partial_solution[0] == -1){
-            break;
-        }
     }
 }
 
