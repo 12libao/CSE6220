@@ -14,12 +14,12 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
 
     // Initialize a vector of vector or 2D vector of size 1Xn with value 0
     int rowsSolution = 1;
-    std::vector < vector<int> > solutions;
+    std::vector < std::vector<unsigned int> > solutions;
 
     // TODO: Implement this function
     for (int p1 = 1; p1 <= n; ++p1){
 
-        std::vector<int> position(n, p1);
+        std::vector<unsigned int> position(n, p1);
         int l = 1;
         int solutionFound = 0;
 
@@ -67,8 +67,28 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
             
             
             if (i == n){
-                solutions.push_back(position);
+                // for (int m=0; m<n; ++m){
+                //     cout<< "solns"<<"\n";
+                //     solns[rowsSolution-1][m] = position[m];
+                //     cout<< "solns"<<"\n";
+                //     cout<< solns[rowsSolution-1][m]<<"\n";
+                // }
+
+                cout<< "solns"<<"\n";
+                // cout<< position<<"\n";
+                // for (int m=0; m<position.size(); ++m){
+                //     cout<< position[m]<<"\n";
+                //     // position[m] += -1;
+                //     int a = position[m];
+                //     position[m] = a-1;
+                // }
+
+                solns.push_back(position);
                 rowsSolution += 1;
+
+                if (exit_on_first == 1){
+                    goto end;
+                }
 
                 i -= 2;
                 solutionFound = 1;
@@ -81,18 +101,26 @@ void seq_solver(unsigned int n, unsigned int exit_on_first, std::vector<std::vec
         }
     }
 
+    
 
-    //Print solutions:
-    cout << "Number of Solutions=" << rowsSolution-1 << "\n";           
-    // for_each(solutions.begin(), solutions.end(),
-    //     [](const auto & row ) { 
-    //         for_each(row.begin(), row.end(), 
-    //                 [](const auto & elem){
-    //                     cout << elem << ", ";
-    //                 });
-    //         cout << endl;
-    //     });
-    // cout << endl; 
+    end:{
+        // std::for_each(solns.begin(), solns.end(), [](const auto & elem){elem-1});
+        //Print solutions:
+        cout << "Number of Solutions=" << rowsSolution-1 << "\n";  
+
+        //solns = &solutions;
+
+        for_each(solns.begin(), solns.end(),
+            [](const auto & row ) { 
+                for_each(row.begin(), row.end(), 
+                        [](const auto & elem){
+                            cout << elem << ", ";
+                        });
+                cout << endl;
+            });
+        cout << endl;
+
+    }
 
 }
 
@@ -108,19 +136,20 @@ void nqueen_master( unsigned int n,
      (you are not obligated to design your solution in this manner.
       This is provided just for your ease). */
 
-    std::vector<int> final_solution;
+    std::vector<unsigned int> final_solution;
     int num_procs;
 
     // total number of procs in the world
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
 
-    int rowsSolution = 1;
+    int rowsSolution = 0;
 
     int worker = 1;
     int send_times = 0;
     int received_times = 0;
     int tag_id = 1;
-    std::vector<int> recv_final_solution;
+    std::vector<unsigned int> recv_final_solution;
+    int s = 0;
 
     for (int p1 = 1; p1 <= n; ++p1){
 
@@ -128,7 +157,7 @@ void nqueen_master( unsigned int n,
         int l = 1;
         int solutionFound = 0;
 
-        if (k == 1){
+        if (k <= 1){
             partial_solution[0] = p1;
             if (worker <= num_procs-1){
                 // cout <<"send_1:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout <<elem << ", ";}); cout<<" \n" ;
@@ -157,8 +186,30 @@ void nqueen_master( unsigned int n,
 
                 // cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
 
-                for (int ii = 0; ii < recv_final_solution.size(); ++ii){
-                    final_solution.push_back(recv_final_solution[ii]);   
+                // s = recv_final_solution.size()/n;
+                // if ((exit_on_first != 1) || ((rowsSolution==1) && (exit_on_first == 1))){
+                //     for (int row_i=0; row_i< s; ++row_i){
+                //         for (int co_i = 0; co_i < n; ++co_i){
+                //             solns[(row_i+rowsSolution)][co_i] = (unsigned int) recv_final_solution[row_i*n + co_i];
+                //         }
+                //     }
+
+                    
+                // }
+                // rowsSolution += s;
+
+                s = recv_final_solution.size()/n;
+                solns.push_back(recv_final_solution);   
+                rowsSolution += s;
+
+                
+
+                // for (int ii = 0; ii < recv_final_solution.size(); ++ii){
+                //     solns.push_back(recv_final_solution[ii]);
+                // }
+
+                if ((recv_final_solution.size() >= n) && (exit_on_first == 1)){
+                    goto exit;
                 }
 
                 MPI_Send(&partial_solution[0], k, MPI_INT, worker_id, tag_id, MPI_COMM_WORLD);
@@ -219,7 +270,7 @@ void nqueen_master( unsigned int n,
                     // cout <<"send_1:" <<"\n"; for_each(partial_solution.begin(), partial_solution.end(),[](const auto & elem){cout <<elem << ", ";}); cout<<" \n" ;
 
                     MPI_Send(&partial_solution[0], k, MPI_INT, worker, tag_id, MPI_COMM_WORLD);
-                    
+                        
                     send_times += 1;
                     tag_id += 1;
                     i -= 2;
@@ -267,8 +318,36 @@ void nqueen_master( unsigned int n,
 
                     // cout << recv_final_solution.size()<<"\n";
                     //store the final solutions
-                    for (int ii = 0; ii < recv_final_solution.size(); ++ii){
-                        final_solution.push_back(recv_final_solution[ii]);   
+
+                    // if ((exit_on_first != 1) || ((rowsSolution==1) && (exit_on_first == 1))){
+                    //     for (int row_i=0; row_i< s; ++row_i){
+                    //         for (int co_i = 0; co_i < n; ++co_i){
+                    //             cout << recv_final_solution[row_i*n + co_i]<<"\n";
+                    //             cout << row_i+rowsSolution<<"\n";
+                    //             cout << co_i<<"\n";
+                    //             solns[row_i+rowsSolution][co_i] = 1;
+                    //             cout << "solns"<<solns[row_i+rowsSolution][co_i]<<"\n";
+                    //             solns[row_i+rowsSolution][co_i] = recv_final_solution[row_i*n + co_i];
+                    //             cout << "solns"<<solns[row_i+rowsSolution][co_i]<<"\n";
+                    //         }
+                    //     }
+
+                        
+                    // }
+                    
+
+                    // cout << "rowsSolution= "<<rowsSolution<<"\n";
+                    // for (int ii = 0; ii < recv_final_solution.size(); ++ii){
+                    //     solns.push_back(recv_final_solution[ii]);   
+                    // }
+                    //cout << "p1= "<<p1<<"\n";
+                    s = recv_final_solution.size()/n;
+                    solns.push_back(recv_final_solution);   
+                    rowsSolution += s;
+                    // cout << "rowsSolution= "<<rowsSolution<<"\n";
+
+                    if ((recv_final_solution.size() >= n) && (exit_on_first == 1)){
+                        goto exit;
                     }
 
                     // cout <<"final_solution_update:" <<""; for_each(final_solution.begin(), final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
@@ -290,11 +369,19 @@ void nqueen_master( unsigned int n,
                 }
 
             }
+
+
         }
+
+
     }
 
-    //cout<<"send_times="<< send_times<<"\n";
-    //cout<<"recive_times="<< received_times<<"\n";
+    exit:{
+        cout<<"send_times="<< send_times<<"\n";
+        cout<<"recive_times="<< received_times<<"\n";
+            
+        }
+
 
     while (send_times != received_times){
         // 4. Break when no more partial solutions exist and all workers have responded with jobs handed to them, or if exiting on first solution
@@ -316,12 +403,31 @@ void nqueen_master( unsigned int n,
         // cout<<"recv_final_solution"<<"\n"; for_each(recv_final_solution.begin(), recv_final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n" ;
 
         //store the final solutions
-        for (int ii = 0; ii < recv_final_solution.size(); ++ii){
-            final_solution.push_back(recv_final_solution[ii]);
+        // s = recv_final_solution.size()/n;
+        // if ((exit_on_first != 1) || ((rowsSolution==1) && (exit_on_first == 1))){
+        //     for (int row_i=0; row_i< s; ++row_i){
+        //         for (int co_i = 0; co_i < n; ++co_i){
+        //             solns[row_i+rowsSolution][co_i] = recv_final_solution[row_i*n + co_i];
+        //         }
+        //     }
+
+            
+        // }
+        // rowsSolution += s;
+        if ((exit_on_first != 1) || ((rowsSolution==1) && (exit_on_first == 1))){
+            s = recv_final_solution.size()/n;
+            solns.push_back(recv_final_solution);   
+            rowsSolution += s;
         }
+
+        // for (int ii = 0; ii < recv_final_solution.size(); ++ii){
+        //     final_solution.push_back(recv_final_solution[ii]);
+        // }
 
         // cout <<"fianl solution:" <<"\n"; for_each(final_solution.begin(), final_solution.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
     }
+
+    
 
     /********************** STEP 3: Terminate **************************
     *
@@ -335,24 +441,48 @@ void nqueen_master( unsigned int n,
     goto finalPrint;
 
 
-
     finalPrint: {
-        rowsSolution = final_solution.size() / n;
-        std::vector<int> position;
-        for (int row=0; row < rowsSolution; ++row){
-            for (int i = 0; i < n; ++i){
-                position.push_back(final_solution[n*row+i]);
-            }
+        //rowsSolution = final_solution.size() / n;
+        cout << "fianl solution #"<< rowsSolution <<"\n";
 
-            for (int ii = 0; ii < n; ++ii){
-                solns.emplace_back(position[ii]);  
-            }
-        }
+        for_each(solns.begin(), solns.end(),
+            [](const auto & row ) { 
+                for_each(row.begin(), row.end(), 
+                        [](const auto & elem){
+                            cout << elem << ", ";
+                        });
+                cout << endl;
+            });
+        cout << endl;
+
+
+        //std::vector<int> position;
+        // for (int row=0; row < rowsSolution; ++row){
+        //     cout<<"row="<<row<<"\n";
+        //     for (int i = 0; i < n; ++i){
+        //         position.push_back(final_solution[n*row+i]);
+        //         cout <<"fianl solution:" <<"\n"; for_each(position.begin(), position.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
+        //     }
+            // solns[row] = position;
+            
+            //solns.push_back(position)
+            // for (int ii = 0; ii < n; ++ii){
+            //     solns.at(row).push_back(position[ii]);
+            //     //solns.at(row).at(ii) = position[ii]; 
+            //     cout << solns.at(row).at(ii) << ", ";
+            // }
+
+        //     if ((row == 0) && (exit_on_first == 1)){
+        //         break;
+        //     }
+        // }
 
         // cout <<"fianl solution:" <<"\n"; for_each(solns.begin(), solns.end(),[](const auto & elem){cout << elem << ", ";}); cout<<" \n";
         //cout << "send times #"<< send_times<<"\n";
-        cout << "fianl solution #"<< final_solution.size()/n<<"\n";
-        //cout << "fianl solution 0 = #"<< final_solution[-1]<<"\n";
+        // cout << "fianl solution #"<< solns.size()/n<<"\n";
+        // cout << "fianl solution #"<< final_solution.size()/n<<"\n";
+        //cout << "fianl solution 0 = #"<< final_solution<<"\n";
+        //cout << "fianl solution 0 = #"<< solns<<"\n";
         //Print solutions:
 
 
@@ -363,6 +493,16 @@ void nqueen_master( unsigned int n,
         //         cout << "\n";
         //     }
         //     cout << final_solution[i] << ", ";
+        // }
+
+        // solns = final_solution;
+
+        // cout <<"fianl solution:"; 
+        // for (int i = 0; i < solns.size(); ++i){
+        //     if (remainder((i), n)==0){
+        //         cout << "\n";
+        //     }
+        //     cout << solns[i] << ", ";
         // }
 
     }
